@@ -5,9 +5,13 @@ const {
   getById,
   addContact,
   removeContact,
-} = require("../../contactsWorkingWithJson");
+  updateStatusContact,
+} = require("../../midlewhare/contactsMidlewhare");
 const router = express.Router();
-const joiValidation = require("../../validationJoi/validationJoi");
+const {
+  schema,
+  schemaContactFavorite,
+} = require("../../validationJoi/validationJoi");
 
 router.get("/", async (req, res, next) => {
   const contacts = await listContacts();
@@ -23,7 +27,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 router.post("/", async (req, res, next) => {
-  const validationRes = joiValidation.validate(req.body);
+  const validationRes = schema.validate(req.body);
   if (validationRes.error) {
     return res.status(400).json({ message: "missing required name field" });
   }
@@ -41,11 +45,26 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 router.put("/:id", async (req, res, next) => {
-  const validationRes = joiValidation.validate(req.body);
+  const validationRes = schema.validate(req.body);
   if (validationRes.error) {
     return res.status(400).json({ message: "missing fields" });
   }
   const contact = await updateContacts(req.params.id, req.body);
+  contact
+    ? res.status(200).json({
+        massage: "success",
+      })
+    : res.status(404).json({
+        message: "Not found",
+      });
+});
+
+router.patch("/:id/favorite", async (req, res, nex) => {
+  const validationRes = schemaContactFavorite.validate(req.body);
+  if (validationRes.error) {
+    return res.status(400).json({ message: "missing field favorite" });
+  }
+  const contact = await updateStatusContact(req.params.id, req.body);
   contact
     ? res.status(200).json({
         massage: "success",
