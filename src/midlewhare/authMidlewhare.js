@@ -1,5 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
+
 require("dotenv").config();
 const { User } = require("../model/userModel");
 const { schemaAuth } = require("../validationJoi/validationJoi");
@@ -15,10 +17,12 @@ const registration = async (req, res) => {
   if (validation.error) {
     return res.status(400).json({ message: "email is not valid" });
   }
+  const secureUrl = gravatar.url(email, { s: "100", r: "x", d: "retro" }, true);
   try {
     const newUser = new User({
       email,
       password: await bcrypt.hash(password, 10),
+      avatarURL: secureUrl,
     });
     await newUser.save();
 
