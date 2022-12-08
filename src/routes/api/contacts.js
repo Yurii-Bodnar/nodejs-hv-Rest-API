@@ -1,101 +1,63 @@
 const express = require("express");
-const {
-  listContacts,
-  updateContacts,
-  getById,
-  addContact,
-  removeContact,
-  updateStatusContact,
-} = require("../../midlewhare/contactsMidlewhare");
+
 const { authAutorization } = require("../../midlewhare/authAutorization");
 const router = express.Router();
 const {
-  schema,
-  schemaContactFavorite,
-} = require("../../validationJoi/validationJoi");
+  getContacts,
+  getByIdContacts,
+  postContact,
+  deleteContact,
+  update,
+  updateStatus,
+} = require("../../contactsService/contactsService");
 
 router.use(authAutorization);
 
 router.get("/", async (req, res, next) => {
-  if (req.user === null) {
-    return res.status(401).json({ message: "Not authorized" });
+  try {
+    getContacts(req, res);
+  } catch (err) {
+    next(res.status(404).json({ message: err.message }));
   }
-  const { _id } = req.user;
-  const contacts = await listContacts(_id);
-  res.status(200).json({ contacts, status: "success" });
 });
 
 router.get("/:id", async (req, res, next) => {
-  const { _id } = req.user;
-  const { id } = req.params;
-  const contact = await getById(id, _id);
-  if (!contact) {
-    return res.status(404).json({ message: "Not found" });
+  try {
+    getByIdContacts(req, res);
+  } catch (err) {
+    next(res.status(404).send(err.message));
   }
-  res.status(200).json({ contact, status: "success" });
 });
 
 router.post("/", async (req, res, next) => {
-  const validationRes = schema.validate(req.body);
-  if (validationRes.error) {
-    return res.status(400).json({ message: "missing required name field" });
-  }
   try {
-    const { email, name, phone } = req.body;
-
-    const { _id } = req.user;
-    await addContact({ email, name, phone }, _id);
-    res.status(201).json({ status: "success" });
+    postContact(req, res);
   } catch (err) {
-    res.status(400).json(err.message);
+    next(res.status(404).send(err.message));
   }
 });
 
 router.delete("/:id", async (req, res, next) => {
-  const { _id: owner } = req.user;
-  const deletedContact = await removeContact(req.params.id, { id: owner });
-
-  deletedContact
-    ? res.status(200).json({ message: "contact deleted" })
-    : res.status(404).json({ message: "Not found" });
+  try {
+    deleteContact(req, res);
+  } catch (err) {
+    next(res.status(404).send(err.message));
+  }
 });
 
 router.put("/:id", async (req, res, next) => {
-  const validationRes = schema.validate(req.body);
-  if (validationRes.error) {
-    return res.status(400).json({ message: "missing fields" });
+  try {
+    update(req, res);
+  } catch (err) {
+    next(res.status(404).send(err.message));
   }
-  const { _id: owner } = req.user;
-  const { id } = req.params;
-  const contact = await updateContacts(id, req.body, { _id: owner });
-  contact
-    ? res.status(200).json({
-        massage: "success",
-      })
-    : res.status(404).json({
-        message: "Not found",
-      });
 });
 
-router.patch("/:id/favorite", async (req, res, nex) => {
-  const validationRes = schemaContactFavorite.validate(req.body);
-  if (validationRes.error) {
-    return res.status(400).json({ message: "missing field favorite" });
-  }
+router.patch("/:id/favorite", async (req, res, next) => {
   try {
-    const { _id: owner } = req.user;
-    const contact = await updateStatusContact(req.params.id, req.body, {
-      _id: owner,
-    });
-    contact
-      ? res.status(200).json({
-          massage: "success",
-        })
-      : res.status(404).json({
-          message: "Not found",
-        });
+    updateStatus(req, res);
   } catch (err) {
-    res.status(404).json(err.message);
+    next(res.status(404).send(err.message));
   }
 });
 

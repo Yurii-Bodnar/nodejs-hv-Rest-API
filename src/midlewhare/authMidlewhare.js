@@ -1,32 +1,40 @@
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const gravatar = require("gravatar");
+const { v4: uuidv4 } = require("uuid");
 
 require("dotenv").config();
 const { User } = require("../model/userModel");
 const { schemaAuth } = require("../validationJoi/validationJoi");
+const { sendMessage, token } = require("../helpers/authHelpers");
 
-const registration = async (req, res) => {
+const registration = async (req, res, next) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (user) {
     return res.status(409).json({ message: "Email in use" });
   }
   const validation = schemaAuth.validate(req.body);
-
   if (validation.error) {
     return res.status(400).json({ message: "email is not valid" });
   }
+
   const secureUrl = gravatar.url(email, { s: "100", r: "x", d: "retro" }, true);
   try {
     const newUser = new User({
       email,
       password: await bcrypt.hash(password, 10),
       avatarURL: secureUrl,
+      verificationToken: uuidv4(),
     });
     await newUser.save();
-
-    res.status(201).json({ message: "success created", email, password });
+    await sendMessage(newUser.verificationToken, email);
+    res
+      .status(201)
+      .json({
+        message: "success created, please confirm your email",
+        email,
+        password,
+      });
   } catch (err) {
     res.status(400).json(err.message);
   }
@@ -35,24 +43,19 @@ const registration = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, verify: true });
 
     const validation = schemaAuth.validate(req.body);
     if (validation.error || !user) {
       return res.status(400).json({
-        message: `No user with email '${email}' found , or email is not valid`,
+        message: `No user with email '${email}' found , or email is not valid, or user unverified`,
       });
     }
     if (!(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Email or password is wrong" });
     }
-    const userToken = jwt.sign(
-      {
-        _id: user._id,
-      },
-      process.env.JWT_SECRET
-    );
-    const signToken = await User.findByIdAndUpdate(user._id, {
+    const userToken = token(user._id);
+    await User.findByIdAndUpdate(user._id, {
       $set: { token: userToken },
     });
     res.status(200).json({
@@ -68,30 +71,25 @@ const logOut = async (req, res) => {
   try {
     const { _id } = req.body;
     const user = await User.findById(_id);
-    // findByIdAndUpdate(_id, { $set: { token: false } });
     if (!user) {
       return res.status(401).json({ message: "Not authorized" });
     }
-    // res.status(200).json(user);
     const changedToken = await User.findByIdAndUpdate(user._id, {
       $set: { token: "" },
     });
     if (!changedToken.token) {
       return res.status(401).json({ message: "Not authorized" });
     }
-    console.log(changedToken);
     res.status(204).json({ message: "ok" });
   } catch (err) {
     res.send(err.message);
   }
-  // res.status(200).json(user);
 };
 
 const getcurrentUser = async (req, res) => {
   try {
     const { token } = req.body;
     const user = await User.findOne({ token });
-    console.log(user);
     if (!user) {
       return res.status(401).json({ message: "Not authorized" });
     }
@@ -103,9 +101,49 @@ const getcurrentUser = async (req, res) => {
   }
 };
 
+const getVerificationUser = async (req, res) => {
+  try {
+    const { verificationToken } = req.params;
+    const updateToken = verificationToken.split("").slice(1, 37).join("");
+    const user = await User.findOne({
+      verificationToken: updateToken,
+    });
+    if (!user.verificationToken) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    await User.findByIdAndUpdate(user._id, {
+      $set: { verificationToken: null, verify: true },
+    });
+    res.status(200).json({ message: "Verification successful" });
+  } catch (err) {
+    res.send(err.message);
+  }
+};
+
+const resendingLetter = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "missing required field email" });
+    }
+    const user = await User.findOne({ email });
+    if (user.verify === true) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+    await sendMessage(user.verificationToken, email);
+    res.status(200).json({ message: "Verification email sent" });
+  } catch (err) {
+    res.send(err.message);
+  }
+};
+
 module.exports = {
   registration,
   login,
   logOut,
   getcurrentUser,
+  getVerificationUser,
+  resendingLetter,
 };
