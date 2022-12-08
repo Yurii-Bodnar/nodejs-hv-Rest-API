@@ -13,6 +13,8 @@ const schema = Joi.object({
   phone: Joi.string().min(7),
   favorite: Joi.boolean(),
   token: Joi.string(),
+  verify: Joi.boolean(),
+  verificationToken: Joi.string(),
 });
 
 const schemaContactFavorite = Joi.object({

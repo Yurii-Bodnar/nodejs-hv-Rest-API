@@ -5,20 +5,58 @@ const {
   login,
   logOut,
   getcurrentUser,
+  getVerificationUser,
+  resendingLetter,
 } = require("../../midlewhare/authMidlewhare");
 
 router.post("/register", async (req, res, next) => {
-  await registration(req, res);
+  try {
+    await registration(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
 });
 
 router.post("/login", async (req, res, next) => {
-  await login(req, res);
+  try {
+    await login(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
 });
 
 router.post("/logout", async (req, res, next) => {
-  logOut(req, res);
+  try {
+    await logOut(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
 });
 router.get("/current", async (req, res, next) => {
-  getcurrentUser(req, res);
+  try {
+    await getcurrentUser(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
+});
+router.get("/verify/:verificationToken", async (req, res, next) => {
+  try {
+    await getVerificationUser(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
+});
+router.post("/verify", async (req, res, next) => {
+  try {
+    await resendingLetter(req, res);
+  } catch (err) {
+    res.send(err.message);
+    next();
+  }
 });
 module.exports = router;

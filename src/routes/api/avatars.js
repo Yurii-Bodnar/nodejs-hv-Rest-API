@@ -24,7 +24,7 @@ router.patch(
     try {
       await avatarUpload(req, res);
     } catch (err) {
-      res.send(err.message);
+      next(res.status(400).send(err.message));
     }
   }
 );
